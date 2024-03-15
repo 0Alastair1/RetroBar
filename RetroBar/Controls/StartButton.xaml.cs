@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Windows;
 using System.Windows.Controls;
@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using ManagedShell.Common.Helpers;
 using RetroBar.Utilities;
+using System.Runtime.InteropServices;
 
 namespace RetroBar.Controls
 {
@@ -15,6 +16,25 @@ namespace RetroBar.Controls
     /// </summary>
     public partial class StartButton : UserControl
     {
+        [DllImport("StartMenuDLL.dll", EntryPoint = "?WaitDllInitThread@@YAXXZ", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void WaitDllInitThread();
+
+        // Import the second function from the DLL
+        [DllImport("StartMenuDLL.dll", EntryPoint = "?DllUpdateSettings@@YAXXZ", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void DllUpdateSettings();
+
+        // Import the third function from the DLL
+        [DllImport("StartMenuDLL.dll", EntryPoint = "?InitManagers@@YAX_N@Z", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void InitManagers(int value);
+
+        // Import the fourth function from the DLL
+        [DllImport("StartMenuDLL.dll", EntryPoint = "?FindRetroBar@@YAPEAUHWND__@@XZ", CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr FindRetroBar();
+
+        // Import the fifth function from the DLL
+        [DllImport("StartMenuDLL.dll", EntryPoint = "?ToggleStartMenu@@YAPEAUHWND__@@H_N@Z", CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr ToggleStartMenu(int arg1, int arg2);
+
         private FloatingStartButton? floatingStartButton;
         private bool allowOpenStart;
         private readonly DispatcherTimer pendingOpenTimer;
@@ -86,7 +106,22 @@ namespace RetroBar.Controls
             Host?.SetTrayHost();
             Host?.SetStartMenuOpen(true);
             pendingOpenTimer.Start();
-            ShellHelper.ShowStartMenu();
+
+            try
+            {
+                WaitDllInitThread();
+                InitManagers(1);
+                FindRetroBar();
+                ToggleStartMenu(-1, 0);
+            }
+            catch (EntryPointNotFoundException e)
+            {
+                ShellHelper.ShowStartMenu();
+            }
+            catch (DllNotFoundException e)
+            {
+                ShellHelper.ShowStartMenu();
+            }
         }
 
         #region Drag
